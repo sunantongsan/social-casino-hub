@@ -27,5 +27,5 @@ export default function PatchGate({children}){
   }catch{ /* Network or integrity failure: keep the last working bundled game. */ }
   finally{await listener?.remove();if(active)setDone(true);}
  }boot();return()=>{active=false;listener?.remove();};},[]);
- return done?children:<main className="max-w-md mx-auto p-10"><h1>Social Casino Hub</h1><p role="status">{text}</p><progress max="100" value={progress} style={{width:'100%'}}/><p>{progress}%</p></main>;
+ return <>{!done&&<main className="max-w-md mx-auto p-10"><h1>Social Casino Hub</h1><p role="status">{text}</p><progress max="100" value={progress} style={{width:'100%'}}/><p>{progress}%</p></main>}<div hidden={!done}>{children}</div></>;
 }
