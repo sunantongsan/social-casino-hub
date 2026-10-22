@@ -61,6 +61,7 @@ export function verifiedReward(s,user,transactionId,now=Date.now()){
  credit(s,user,500,'reward:'+transactionId);w.lastReward=now;
  return (s.receipts[key]={result:{rewarded:500}}).result;
 }
-export function view(s,user){
- return {round:s.round,wallet:s.wallets[user],userId:user,gifts:Object.values(s.gifts).filter(g=>g.to===user&&!g.claimed)};
+// serverNow lets clients correct for device clock skew when showing the countdown.
+export function view(s,user,now=Date.now()){
+ return {round:s.round,wallet:s.wallets[user],userId:user,serverNow:now,gifts:Object.values(s.gifts).filter(g=>g.to===user&&!g.claimed)};
 }

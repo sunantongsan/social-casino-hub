@@ -47,7 +47,7 @@ Deno.serve(async req=>{
    }
    const saved=await fetch(url+`/rest/v1/social_casino_internal_state?id=eq.1&version=eq.${row.version}`,{method:'PATCH',headers:{...headers,Prefer:'return=representation'},body:JSON.stringify({data:s,version:row.version+1})});
    if(!saved.ok)throw Error('DB_UNAVAILABLE');
-   if((await saved.json()).length)return answer({ok:true,result,state:{...view(s,user),players,demo:false,internal:true}});
+   if((await saved.json()).length)return answer({ok:true,result,state:{...view(s,user,now),players,demo:false,internal:true}});
   }
   return answer({error:'BUSY_RETRY'},503);
  }catch(e){const safe=['INVALID_BET','BETTING_CLOSED','ONE_BET_PER_ROUND','INSUFFICIENT_OR_LIMIT','INVALID_RECIPIENT','INVALID_COST','INVALID_GIFT','REWARD_NOT_ELIGIBLE','INVALID_REQUEST_ID','REQUEST_ID_REUSED','UNSUPPORTED_COMMAND'];return answer({error:safe.includes(e.message)?e.message:'SERVER_ERROR'},400);}

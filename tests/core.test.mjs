@@ -1,5 +1,5 @@
 import test from 'node:test';import assert from 'node:assert/strict';import {randomUUID} from 'node:crypto';
-import {initial,ensureUser,payout,bet,tick,sendGift,claimGift,verifiedReward} from '../packages/game-core/index.mjs';
+import {initial,ensureUser,payout,bet,tick,sendGift,claimGift,verifiedReward,view} from '../packages/game-core/index.mjs';
 import {Bot} from '../apps/server/src/bot.mjs';import {createStore} from '../apps/server/src/store.mjs';
 function fixture(){const s=initial(0);ensureUser(s,'alice');ensureUser(s,'bob');return s;}
 const b=(s,kind='small',stake=100)=>({requestId:randomUUID(),roundId:s.round.id,kind,stake});
@@ -46,4 +46,7 @@ test('transaction queue prevents concurrent overspend; rollback keeps balance',a
 });
 test('restart serialization preserves unresolved bet for recovery settlement',()=>{
  let s=fixture();bet(s,'alice',b(s),1);s=JSON.parse(JSON.stringify(s));tick(s,90000,()=>[1,2,3]);assert.equal(s.wallets.alice.chips,1100);
+});
+test('view exposes server time so clients can correct clock skew',()=>{
+ const s=fixture(),v=view(s,'alice',12345);assert.equal(v.serverNow,12345);assert.equal(v.wallet.chips,1000);assert.equal(v.round.endsAt,20000);
 });
