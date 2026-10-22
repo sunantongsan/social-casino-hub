@@ -1,5 +1,5 @@
 import {createHash,randomUUID} from 'node:crypto';
-import {initial,ensureUser,tick,bet,sendGift,claimGift,verifiedReward,view} from './core.mjs';
+import {initial,ensureUser,tick,bet,sendGift,claimGift,verifiedReward,view,game} from './core.mjs';
 const url=Deno.env.get('SUPABASE_URL')!, key=Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
 const headers={apikey:key,Authorization:`Bearer ${key}`,'Content-Type':'application/json'};
 const cors={'Access-Control-Allow-Origin':'*','Access-Control-Allow-Headers':'content-type,apikey,authorization','Access-Control-Allow-Methods':'POST,OPTIONS','Cache-Control':'no-store','Content-Type':'application/json'};
@@ -39,6 +39,7 @@ Deno.serve(async req=>{
     if(type==='bet')result=bet(s,user,payload,now);
     else if(type==='gift')result=sendGift(s,user,payload);
     else if(type==='claim')result=claimGift(s,user,payload);
+    else if(type==='game')result=game(s,user,payload,now);
     else if(type==='internalRefill'){
      if(typeof payload.requestId!=='string'||!/^[0-9a-f-]{36}$/i.test(payload.requestId))throw Error('INVALID_REQUEST_ID');
      result=verifiedReward(s,user,'internal:'+user+':'+payload.requestId,now);
@@ -50,5 +51,5 @@ Deno.serve(async req=>{
    if((await saved.json()).length)return answer({ok:true,result,state:{...view(s,user,now),players,demo:false,internal:true}});
   }
   return answer({error:'BUSY_RETRY'},503);
- }catch(e){const safe=['INVALID_BET','BETTING_CLOSED','ONE_BET_PER_ROUND','INSUFFICIENT_OR_LIMIT','INVALID_RECIPIENT','INVALID_COST','INVALID_GIFT','REWARD_NOT_ELIGIBLE','INVALID_REQUEST_ID','REQUEST_ID_REUSED','UNSUPPORTED_COMMAND'];return answer({error:safe.includes(e.message)?e.message:'SERVER_ERROR'},400);}
+ }catch(e){const safe=['INVALID_BET','BETTING_CLOSED','ONE_BET_PER_ROUND','INSUFFICIENT_OR_LIMIT','INVALID_RECIPIENT','INVALID_COST','INVALID_GIFT','REWARD_NOT_ELIGIBLE','INVALID_REQUEST_ID','REQUEST_ID_REUSED','UNSUPPORTED_COMMAND','INVALID_GAME','TABLE_ACTIVE','NO_TABLE','STALE_ACTION','INVALID_ACTION'];return answer({error:safe.includes(e.message)?e.message:'SERVER_ERROR'},400);}
 });

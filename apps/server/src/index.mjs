@@ -3,7 +3,7 @@ import {randomUUID} from 'node:crypto';
 import {Server} from 'socket.io';
 import {createStore} from './store.mjs';
 import {Bot} from './bot.mjs';
-import {ensureUser,bet,tick,view,sendGift,claimGift,verifiedReward} from '../../../packages/game-core/index.mjs';
+import {ensureUser,bet,tick,view,sendGift,claimGift,verifiedReward,game} from '../../../packages/game-core/index.mjs';
 const dev=process.env.DEV_AUTH==='true';
 if(dev&&process.env.NODE_ENV==='production')throw Error('DEV_AUTH_FORBIDDEN');
 if(!dev&&(!process.env.SUPABASE_URL||!process.env.SUPABASE_PUBLISHABLE_KEY))throw Error('AUTH_CONFIG_REQUIRED');
@@ -40,10 +40,11 @@ io.on('connection',socket=>{
       case 'bet':return bet(s,socket.data.user,p);
       case 'gift':return sendGift(s,socket.data.user,p);
       case 'claim':return claimGift(s,socket.data.user,p);
+      case 'game':return game(s,socket.data.user,p);
       case 'demoReward':if(dev)return verifiedReward(s,socket.data.user,'demo:'+randomUUID());break;
      }throw Error('UNSUPPORTED_COMMAND');
     });ack({ok:true,result});await broadcast().catch(()=>console.error('broadcast failed'));
-   }catch(e){const safe=['BETTING_CLOSED','ONE_BET_PER_ROUND','INVALID_BET','INSUFFICIENT_OR_LIMIT','INVALID_RECIPIENT','INVALID_COST','REWARD_NOT_ELIGIBLE','AUTH_REQUIRED','INVALID_GIFT','REQUEST_ID_REUSED'];ack({error:safe.includes(e.message)?e.message:'REQUEST_FAILED'});}
+   }catch(e){const safe=['BETTING_CLOSED','ONE_BET_PER_ROUND','INVALID_BET','INSUFFICIENT_OR_LIMIT','INVALID_RECIPIENT','INVALID_COST','REWARD_NOT_ELIGIBLE','AUTH_REQUIRED','INVALID_GIFT','REQUEST_ID_REUSED','INVALID_GAME','TABLE_ACTIVE','NO_TABLE','STALE_ACTION','INVALID_ACTION'];ack({error:safe.includes(e.message)?e.message:'REQUEST_FAILED'});}
  });
  store.run(s=>ensureUser(s,socket.data.user)).then(broadcast).catch(()=>socket.disconnect(true));
  const expiry=setTimeout(()=>socket.disconnect(true),15*60*1000);

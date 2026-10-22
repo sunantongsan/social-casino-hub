@@ -18,7 +18,10 @@ Supabase Auth + PostgreSQL, Capacitor Android. ใช้ชิปจำลอง
 - idempotency keys, transaction rollback, concurrent debit protection
 - Supabase email/password login สำหรับบัญชีที่ผู้ดูแลสร้างไว้; ชิปเริ่มต้น 1,000 ครั้งเดียว
 - Rewarded Ads interface และ mock เฉพาะ local; โฆษณาจริงยังไม่เชื่อม
-- ไพ่ผสมสิบ / รัมมี่ / ป๊อกเด้ง / เก้าเก / Roulette เป็นรายการ “เร็ว ๆ นี้” ยังเล่นไม่ได้
+- ป๊อกเด้ง / เก้าเก / ไพ่ผสมสิบ / รัมมี่ / Roulette เล่นได้แล้ว เป็นโต๊ะส่วนตัวต่อผู้เล่น มีบอตเป็นเจ้ามือ/คู่แข่ง
+  (`packages/game-core/games.mjs`): เซิร์ฟเวอร์แจกไพ่ ซ่อนไพ่บอตและสำรับจนจบตา ตัดสินและจ่ายชิปเอง
+  ทุกคำสั่งแนบเลข step ของโต๊ะ ส่งซ้ำจะถูกปฏิเสธ (STALE_ACTION) ไม่ต้องเก็บ receipt เพิ่ม
+- Edge Function ใช้สำเนา core.mjs/games.mjs ใน `supabase/functions/social-casino-internal`; เทสต์ตรวจว่าตรงกับต้นฉบับ
 
 ## โครงสร้าง
 | Path | หน้าที่ |

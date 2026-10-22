@@ -1,4 +1,5 @@
 import {randomInt,randomUUID} from 'node:crypto';
+import {gameCommand,gameView} from './games.mjs';
 export const BETS = ['small','big','triple'];
 export function payout(dice,kind,stake){
   if(!Array.isArray(dice)||dice.length!==3||dice.some(d=>!Number.isInteger(d)||d<1||d>6)) throw Error('INVALID_DICE');
@@ -10,7 +11,7 @@ export function payout(dice,kind,stake){
 }
 export const roll=()=>Array.from({length:3},()=>randomInt(1,7));
 export function initial(now=Date.now()){
-  return {wallets:{},gifts:{},receipts:{},ledger:[],round:{id:randomUUID(),phase:'BETTING',endsAt:now+20000,bets:{},dice:null}};
+  return {wallets:{},gifts:{},receipts:{},ledger:[],tables:{},round:{id:randomUUID(),phase:'BETTING',endsAt:now+20000,bets:{},dice:null}};
 }
 function credit(s,id,delta,reason){
   const w=s.wallets[id]; if(!w||!Number.isSafeInteger(delta)||w.chips+delta<0||w.chips+delta>1e9) throw Error('INSUFFICIENT_OR_LIMIT');
@@ -62,6 +63,7 @@ export function verifiedReward(s,user,transactionId,now=Date.now()){
  return (s.receipts[key]={result:{rewarded:500}}).result;
 }
 // serverNow lets clients correct for device clock skew when showing the countdown.
+export function game(s,user,payload,now=Date.now()){return gameCommand(s,user,payload,credit,now);}
 export function view(s,user,now=Date.now()){
- return {round:s.round,wallet:s.wallets[user],userId:user,serverNow:now,gifts:Object.values(s.gifts).filter(g=>g.to===user&&!g.claimed)};
+ return {round:s.round,wallet:s.wallets[user],userId:user,serverNow:now,tables:gameView(s,user),gifts:Object.values(s.gifts).filter(g=>g.to===user&&!g.claimed)};
 }
