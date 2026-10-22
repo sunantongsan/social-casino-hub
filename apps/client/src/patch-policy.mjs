@@ -1,0 +1,1 @@
+export function validPatch(m,nativeVersion){return !!m&&typeof m.id==='string'&&/^web-[a-f0-9]{40}$/.test(m.id)&&Number.isSafeInteger(m.sequence)&&m.sequence>0&&m.nativeVersion===nativeVersion&&typeof m.sha256==='string'&&/^[a-f0-9]{64}$/.test(m.sha256)&&m.url===`https://github.com/sunantongsan/social-casino-hub/releases/download/${m.id}/web.zip`;}

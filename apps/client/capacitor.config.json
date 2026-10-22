@@ -7,5 +7,12 @@
   },
   "android": {
     "allowMixedContent": false
+  },
+  "plugins": {
+    "LiveUpdate": {
+      "readyTimeout": 15000,
+      "httpTimeout": 20000,
+      "autoBlockRolledBackBundles": true
+    }
   }
 }

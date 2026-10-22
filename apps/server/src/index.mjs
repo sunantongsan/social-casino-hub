@@ -1,3 +1,4 @@
+import {tableCommand,tickTables,tablesView,testRefill} from '../../../packages/game-core/tables.mjs';
 import {createServer} from 'node:http';
 import {randomUUID} from 'node:crypto';
 import {Server} from 'socket.io';
@@ -22,7 +23,7 @@ const bots=Array.from({length:3},(_,i)=>new Bot('bot:'+i));
 let busy=false;
 function players(){return [...new Set([...io.sockets.sockets.values()].map(s=>s.data.user))];}
 async function broadcast(){
- const snapshot=await store.run(s=>Object.fromEntries(players().map(id=>[id,view(s,id)])));
+ const snapshot=await store.run(s=>Object.fromEntries(players().map(id=>[id,{...view(s,id),...tablesView(s,id)}])));
  const humans=players();
  for(const socket of io.sockets.sockets.values())if(snapshot[socket.data.user])socket.emit('state',{...snapshot[socket.data.user],players:humans.map(id=>({id,bot:false})).concat(bots.slice(0,Math.max(0,4-humans.length)).map(b=>({id:b.id,bot:true,state:b.state}))),demo:dev});
 }
@@ -37,13 +38,14 @@ io.on('connection',socket=>{
     const result=await store.run(s=>{
      ensureUser(s,socket.data.user);const p=msg?.payload||{};
      switch(msg?.type){
+      case 'table':return tableCommand(s,socket.data.user,p);
       case 'bet':return bet(s,socket.data.user,p);
       case 'gift':return sendGift(s,socket.data.user,p);
       case 'claim':return claimGift(s,socket.data.user,p);
-      case 'demoReward':if(dev)return verifiedReward(s,socket.data.user,'demo:'+randomUUID());break;
+      case 'demoReward':if(dev)return testRefill(s,socket.data.user,{requestId:randomUUID()});break;
      }throw Error('UNSUPPORTED_COMMAND');
     });ack({ok:true,result});await broadcast().catch(()=>console.error('broadcast failed'));
-   }catch(e){const safe=['BETTING_CLOSED','ONE_BET_PER_ROUND','INVALID_BET','INSUFFICIENT_OR_LIMIT','INVALID_RECIPIENT','INVALID_COST','REWARD_NOT_ELIGIBLE','AUTH_REQUIRED','INVALID_GIFT','REQUEST_ID_REUSED'];ack({error:safe.includes(e.message)?e.message:'REQUEST_FAILED'});}
+   }catch(e){const safe=['READY_REQUIRED','ROUND_ACTIVE','JOIN_FIRST','NOT_YOUR_TURN','INVALID_ACTION','RAISE_LIMIT','EMPTY_PILE','DRAW_FIRST','INVALID_MELD','INVALID_CARD','INVALID_GAME','TABLE_FULL','STALE_ACTION','BETTING_CLOSED','ONE_BET_PER_ROUND','INVALID_BET','INSUFFICIENT_OR_LIMIT','INVALID_RECIPIENT','INVALID_COST','REWARD_NOT_ELIGIBLE','AUTH_REQUIRED','INVALID_GIFT','REQUEST_ID_REUSED'];ack({error:safe.includes(e.message)?e.message:'REQUEST_FAILED'});}
  });
  store.run(s=>ensureUser(s,socket.data.user)).then(broadcast).catch(()=>socket.disconnect(true));
  const expiry=setTimeout(()=>socket.disconnect(true),15*60*1000);
@@ -51,7 +53,7 @@ io.on('connection',socket=>{
 });
 setInterval(async()=>{
  if(busy)return;busy=true;
- try{const count=players().length;await store.run(s=>{const now=Date.now();tick(s,now);bots.forEach((b,i)=>b.update(s,now,count>0&&i<Math.max(0,4-count)));});await broadcast();}
+ try{const count=players().length;await store.run(s=>{const now=Date.now();tick(s,now);tickTables(s,now);bots.forEach((b,i)=>b.update(s,now,count>0&&i<Math.max(0,4-count)));});await broadcast();}
  catch(e){console.error('room tick failed:',e.code||e.name);}finally{busy=false;}
 },1000);
 server.listen(Number(process.env.PORT||3001),'0.0.0.0',()=>console.log('Hub listening; demo auth:',dev));

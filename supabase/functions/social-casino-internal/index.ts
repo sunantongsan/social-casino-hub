@@ -1,5 +1,6 @@
 import {createHash,randomUUID} from 'node:crypto';
 import {initial,ensureUser,tick,bet,sendGift,claimGift,verifiedReward,view} from './core.mjs';
+import {tableCommand,tickTables,tablesView,testRefill} from './tables.mjs';
 const url=Deno.env.get('SUPABASE_URL')!, key=Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
 const headers={apikey:key,Authorization:`Bearer ${key}`,'Content-Type':'application/json'};
 const cors={'Access-Control-Allow-Origin':'*','Access-Control-Allow-Headers':'content-type,apikey,authorization','Access-Control-Allow-Methods':'POST,OPTIONS','Cache-Control':'no-store','Content-Type':'application/json'};
@@ -33,22 +34,24 @@ Deno.serve(async req=>{
    if(Object.keys(s.receipts).length>=20000)return answer({error:'MAINTENANCE_REQUIRED'},503);
    ensureUser(s,user);s.presence??={};s.lastAction??={};s.presence[user]=now;
    for(const [id,time] of Object.entries(s.presence))if(now-Number(time)>60000)delete s.presence[id];
-   tick(s,now);const players=bots(s,now);let result={};
+   tick(s,now);tickTables(s,now);const players=bots(s,now);let result={};
    if(type!=='state'){
     if(now-(s.lastAction[user]||0)<300)return answer({error:'RATE_LIMIT'},429);
-    if(type==='bet')result=bet(s,user,payload,now);
+    if(type==='table')result=tableCommand(s,user,payload,now);
+    else if(type==='bet')result=bet(s,user,payload,now);
     else if(type==='gift')result=sendGift(s,user,payload);
     else if(type==='claim')result=claimGift(s,user,payload);
     else if(type==='internalRefill'){
      if(typeof payload.requestId!=='string'||!/^[0-9a-f-]{36}$/i.test(payload.requestId))throw Error('INVALID_REQUEST_ID');
-     result=verifiedReward(s,user,'internal:'+user+':'+payload.requestId,now);
+     result=testRefill(s,user,payload);
     }else throw Error('UNSUPPORTED_COMMAND');
     s.lastAction[user]=now;
    }
+   s.ledger=s.ledger.slice(-2000);
    const saved=await fetch(url+`/rest/v1/social_casino_internal_state?id=eq.1&version=eq.${row.version}`,{method:'PATCH',headers:{...headers,Prefer:'return=representation'},body:JSON.stringify({data:s,version:row.version+1})});
    if(!saved.ok)throw Error('DB_UNAVAILABLE');
-   if((await saved.json()).length)return answer({ok:true,result,state:{...view(s,user),players,demo:false,internal:true}});
+   if((await saved.json()).length)return answer({ok:true,result,state:{...view(s,user),...tablesView(s,user),players,demo:false,internal:true}});
   }
   return answer({error:'BUSY_RETRY'},503);
- }catch(e){const safe=['INVALID_BET','BETTING_CLOSED','ONE_BET_PER_ROUND','INSUFFICIENT_OR_LIMIT','INVALID_RECIPIENT','INVALID_COST','INVALID_GIFT','REWARD_NOT_ELIGIBLE','INVALID_REQUEST_ID','REQUEST_ID_REUSED','UNSUPPORTED_COMMAND'];return answer({error:safe.includes(e.message)?e.message:'SERVER_ERROR'},400);}
+ }catch(e){const safe=['READY_REQUIRED','ROUND_ACTIVE','JOIN_FIRST','NOT_YOUR_TURN','INVALID_ACTION','RAISE_LIMIT','EMPTY_PILE','DRAW_FIRST','INVALID_MELD','INVALID_CARD','INVALID_GAME','TABLE_FULL','STALE_ACTION','INVALID_BET','BETTING_CLOSED','ONE_BET_PER_ROUND','INSUFFICIENT_OR_LIMIT','INVALID_RECIPIENT','INVALID_COST','INVALID_GIFT','REWARD_NOT_ELIGIBLE','INVALID_REQUEST_ID','REQUEST_ID_REUSED','UNSUPPORTED_COMMAND'];return answer({error:safe.includes(e.message)?e.message:'SERVER_ERROR'},400);}
 });

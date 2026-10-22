@@ -12,14 +12,14 @@ export const roll=()=>Array.from({length:3},()=>randomInt(1,7));
 export function initial(now=Date.now()){
   return {wallets:{},gifts:{},receipts:{},ledger:[],round:{id:randomUUID(),phase:'BETTING',endsAt:now+20000,bets:{},dice:null}};
 }
-function credit(s,id,delta,reason){
+export function credit(s,id,delta,reason){
   const w=s.wallets[id]; if(!w||!Number.isSafeInteger(delta)||w.chips+delta<0||w.chips+delta>1e9) throw Error('INSUFFICIENT_OR_LIMIT');
   w.chips+=delta;s.ledger.push({id:randomUUID(),user:id,delta,reason,at:Date.now()});
 }
 export function ensureUser(s,id,bot=false){
   if(!s.wallets[id]){s.wallets[id]={chips:0,bot,lastReward:0};credit(s,id,bot?100000:1000,'welcome');}
 }
-function once(s,user,key,payload,fn){
+export function once(s,user,key,payload,fn){
   if(typeof key!=='string'||!/^[0-9a-f-]{36}$/i.test(key)) throw Error('INVALID_REQUEST_ID');
   const id=user+':'+key, fingerprint=JSON.stringify(payload), old=s.receipts[id];
   if(old){if(old.fingerprint!==fingerprint)throw Error('REQUEST_ID_REUSED');return old.result;}
