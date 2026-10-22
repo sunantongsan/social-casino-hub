@@ -10,16 +10,17 @@
     "android:open": "cap open android"
   },
   "dependencies": {
+    "@capacitor/android": "8.5.3",
+    "@capacitor/core": "8.5.3",
+    "@capgo/capacitor-updater": "8.52.1",
     "react": "19.3.1",
     "react-dom": "19.3.1",
-    "socket.io-client": "4.8.4",
-    "@capacitor/core": "8.5.3",
-    "@capacitor/android": "8.5.3"
+    "socket.io-client": "4.8.4"
   },
   "devDependencies": {
-    "vite": "8.3.5",
     "@capacitor/cli": "8.5.3",
+    "@tailwindcss/vite": "4.3.3",
     "tailwindcss": "4.3.3",
-    "@tailwindcss/vite": "4.3.3"
+    "vite": "8.3.5"
   }
 }

@@ -1,0 +1,51 @@
+name: Publish game patch
+# Ships web (UI/game screen) changes to installed Android apps without a Play release.
+# The app checks releases/latest/download/latest.json at launch (apps/client/src/updater.js).
+# Server rules live in the Supabase Edge Function and must be deployed separately.
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+permissions:
+  contents: write
+concurrency:
+  group: game-patch
+  cancel-in-progress: false
+jobs:
+  patch:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    env:
+      VITE_INTERNAL_TEST: 'true'
+      VITE_INTERNAL_ENDPOINT: https://uzinxxeadejmzxqmqqtx.supabase.co/functions/v1/social-casino-internal
+      VITE_DEV_AUTH: 'false'
+      VITE_UPDATE_MANIFEST: https://github.com/${{ github.repository }}/releases/latest/download/latest.json
+      # Oldest store build that can run this bundle. Raise it when native plugins or Android config change.
+      MIN_NATIVE: 0.3.0
+      GH_REPO: ${{ github.repository }}
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: '22'
+          cache: npm
+      - run: npm ci
+      - run: npm test
+      - name: Build web bundle
+        run: |
+          echo "BUNDLE_VERSION=$(git log -1 --format=%ct)" >> "$GITHUB_ENV"
+          VITE_BUNDLE_VERSION=$(git log -1 --format=%ct) npm run build
+      - name: Package and publish
+        run: |
+          tag="patch-$BUNDLE_VERSION"
+          if gh release view "$tag" >/dev/null 2>&1; then echo "$tag already published"; exit 0; fi
+          (cd apps/client/dist && zip -qr "$GITHUB_WORKSPACE/game-bundle.zip" .)
+          sum=$(sha256sum game-bundle.zip | cut -d' ' -f1)
+          url="https://github.com/$GH_REPO/releases/download/$tag/game-bundle.zip"
+          node -e 'console.log(JSON.stringify({version:Number(process.argv[1]),url:process.argv[2],checksum:process.argv[3],minNative:process.env.MIN_NATIVE,commit:process.env.GITHUB_SHA}))' "$BUNDLE_VERSION" "$url" "$sum" > latest.json
+          cat latest.json
+          gh release create "$tag" game-bundle.zip latest.json --target "$GITHUB_SHA" --latest \
+            --title "Game patch $tag" --notes "Web bundle for installed apps (min native $MIN_NATIVE), commit $GITHUB_SHA"

@@ -5,6 +5,7 @@ import {rewardedAds} from './ads';
 import './style.css';
 import {internalConnection,guestToken} from './internal';
 import {GameTable,GAME_INFO} from './games';
+import {checkForPatch,bundleVersion} from './updater';
 const internal=import.meta.env.VITE_INTERNAL_TEST==='true';
 const demo=import.meta.env.VITE_DEV_AUTH==='true';
 const url=import.meta.env.VITE_SERVER_URL||'http://localhost:3001';
@@ -17,7 +18,7 @@ const done={game:'',bet:'ลงชิปแล้ว รอผลลูกเต
 function outcome(dice){const sum=dice.reduce((a,b)=>a+b,0),triple=dice.every(d=>d===dice[0]);return {sum,triple,kind:triple?'triple':sum<=10?'small':'big'};}
 function returned(dice,b){return outcome(dice).kind===b.kind?b.stake*(b.kind==='triple'?31:2):0;}
 function App(){
- const [socket,setSocket]=useState(null),[s,setS]=useState(null),[status,setStatus]=useState('ยังไม่เชื่อมต่อ'),[notice,setNotice]=useState(''),[stakeText,setStakeText]=useState('10'),[pending,setPending]=useState(false),[email,setEmail]=useState(''),[password,setPassword]=useState(''),[to,setTo]=useState(''),[,setClock]=useState(0),[tab,setTab]=useState('hilo');
+ const [socket,setSocket]=useState(null),[s,setS]=useState(null),[status,setStatus]=useState('ยังไม่เชื่อมต่อ'),[notice,setNotice]=useState(''),[stakeText,setStakeText]=useState('10'),[pending,setPending]=useState(false),[email,setEmail]=useState(''),[password,setPassword]=useState(''),[to,setTo]=useState(''),[,setClock]=useState(0),[tab,setTab]=useState('hilo'),[applyPatch,setApplyPatch]=useState(null);
  const offset=useRef(0),lastRound=useRef(null);
  function onState(v){if(Number.isFinite(v?.serverNow))offset.current=v.serverNow-Date.now();if(lastRound.current&&lastRound.current!==v.round.id)setNotice('');lastRound.current=v.round.id;setS(v);}
  function connect(token){
@@ -25,6 +26,7 @@ function App(){
   c.on('connect',()=>setStatus('เชื่อมต่อแล้ว'));c.on('disconnect',()=>{setStatus('ขาดการเชื่อมต่อ • กดเข้าเล่นอีกครั้ง');setS(null);});c.on('connect_error',()=>setStatus('เชื่อมต่อไม่สำเร็จ ตรวจสอบบัญชีและเซิร์ฟเวอร์'));c.on('state',onState);
  }
  useEffect(()=>()=>socket?.disconnect(),[socket]);
+ useEffect(()=>{checkForPatch(apply=>setApplyPatch(()=>apply)).catch(()=>{});},[]);
  // Re-render between server updates so the countdown runs smoothly (internal mode polls every 2s).
  const playing=!!s;
  useEffect(()=>{if(!playing)return;const t=setInterval(()=>setClock(Date.now()),250);return ()=>clearInterval(t);},[playing]);
@@ -48,6 +50,7 @@ function App(){
  const result=s?.round.dice&&outcome(s.round.dice);
  const won=myBet&&result?returned(s.round.dice,myBet):0;
  return <main className="max-w-5xl mx-auto p-5 md:p-10">
+ {applyPatch&&<button className="patch" onClick={()=>applyPatch().catch(()=>setNotice('ติดตั้งอัปเดตไม่สำเร็จ จะลองใหม่เมื่อเปิดแอปครั้งถัดไป'))}>🎁 มีอัปเดตเกมใหม่ • แตะเพื่อโหลดเกมใหม่</button>}
  <header className="flex justify-between items-center mb-9"><div><span className="eyebrow">PLAY • CONNECT • UNWIND</span><h1 className="text-2xl md:text-4xl font-bold">Social Casino <em>Hub</em></h1></div><span className="badge">ชิปจำลองเท่านั้น</span></header>
  {!s&&<div className="hero"><div><span className="eyebrow">โต๊ะไฮโล / SIC BO</span><h2>พบเพื่อนใหม่<br/>ในทุกตาที่เล่น</h2><p>เพื่อความบันเทิง ไม่มีการถอนเงินหรือแลกรางวัลจริง</p></div><div className="hero-dice">⚄ ⚂ ⚅</div></div>}
  <nav className="flex gap-2 overflow-x-auto py-5">{[['hilo','ไฮโล'],...Object.entries(GAME_INFO).map(([k,g])=>[k,g.title])].map(([k,n])=><button type="button" key={k} className={'badge tab '+(tab===k?'active':'')} onClick={()=>setTab(k)}>{n}{s?.tables?.[k]&&s.tables[k].phase!=='done'?' •':''}</button>)}</nav>
@@ -66,6 +69,6 @@ function App(){
   <p className="text-xs text-slate-400 mt-3">ตองทำให้สูง/ต่ำแพ้ • ลงได้ 1 ครั้งต่อรอบ • สูงสุด 1,000 ชิป</p>
   <div className="mt-6 flex flex-wrap gap-2">{s.players.map(p=><span className="badge" key={p.id}>{p.bot?'🤖 บอต '+(Number(p.id.split(':')[1])+1):(p.id===s.userId?'⭐ คุณ ':'👤 ผู้เล่น ')+p.id.slice(-4)}{s.round.bets[p.id]?' • ลงแล้ว':''}</span>)}</div></section>}
  <aside className="panel"><span className="eyebrow">ชิปของคุณ</span><h2 className="balance">{s.wallet.chips.toLocaleString()}</h2><button disabled={pending||s.wallet.chips!==0} onClick={async()=>{if(internal)command('internalRefill',{requestId:crypto.randomUUID()});else if(demo)command('demoReward');else try{await rewardedAds.show();}catch(e){setNotice(e.message);}}}>{internal||demo?'เติมชิปทดสอบ (ไม่มีโฆษณา)':'ดูโฆษณารับชิป'}</button>{s.wallet.chips!==0&&<p className="text-xs text-slate-400">เติมได้เมื่อชิปหมด</p>}<hr/><h3>ส่งของขวัญ</h3><p className="text-xs">ส่ง 100 ชิป ผู้รับแปลงได้ 50 ชิป</p><input aria-label="รหัสผู้รับ" placeholder="รหัสผู้รับ" value={to} onChange={e=>setTo(e.target.value)}/><button disabled={pending||!to.trim()||s.wallet.chips<100} onClick={()=>command('gift',{requestId:crypto.randomUUID(),to:to.trim(),cost:100})}>ส่งของขวัญ 100 ชิป</button><p className="text-xs break-all mt-3">รหัสคุณ: {s.userId}</p>{s.gifts.map(g=><button key={g.id} disabled={pending} onClick={()=>command('claim',{giftId:g.id})}>รับของขวัญ {g.value} ชิป</button>)}</aside></div>}
- <p role="status" className="notice">{notice}</p><footer><a href="/privacy.html">นโยบายความเป็นส่วนตัว</a><br/>Social Casino Hub · Internal 0.2.0 · บอตมีป้ายกำกับเสมอ</footer></main>;
+ <p role="status" className="notice">{notice}</p><footer><a href="/privacy.html">นโยบายความเป็นส่วนตัว</a><br/>Social Casino Hub · Internal 0.3.0{bundleVersion?` · แพตช์ ${bundleVersion}`:''} · บอตมีป้ายกำกับเสมอ</footer></main>;
 }
 createRoot(document.getElementById('root')).render(<App/>);

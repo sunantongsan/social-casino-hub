@@ -54,3 +54,16 @@ https://capacitorjs.com/docs/updating/8-0
 TWA alternative is not implemented here. Its association file would be
 `/.well-known/assetlinks.json` (not digital-asset-links.json), using the Play App Signing
 certificate SHA-256, not the upload certificate. Capacitor does not require it for packaging.
+
+## Game patches (live update)
+From app version 0.3.0 the Android app includes `@capgo/capacitor-updater` in manual mode
+(no Capgo cloud, stats disabled). On launch it reads
+`https://github.com/sunantongsan/social-casino-hub/releases/latest/download/latest.json`,
+downloads a newer web bundle (sha256 checked), and applies it on the next launch or when the
+player taps the update banner. A bundle that fails to start is rolled back automatically.
+- Every push to `main` runs `.github/workflows/patch.yml`, which builds and publishes the patch.
+- Patches can change screens, styles and client logic only. Native plugins, permissions, icons,
+  package settings and server rules are not patched: native changes need a Play release (raise
+  `MIN_NATIVE` in patch.yml at the same time), and rules need the Edge Function deployed.
+- Apps installed before 0.3.0 have no updater; players must update from Play once.
+- Patches must stay within Play policy and the store listing (same app purpose and features).

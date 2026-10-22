@@ -12,6 +12,7 @@ jobs:
       VITE_INTERNAL_TEST: 'true'
       VITE_INTERNAL_ENDPOINT: https://uzinxxeadejmzxqmqqtx.supabase.co/functions/v1/social-casino-internal
       VITE_DEV_AUTH: 'false'
+      VITE_UPDATE_MANIFEST: https://github.com/${{ github.repository }}/releases/latest/download/latest.json
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
         with:
@@ -26,7 +27,8 @@ jobs:
           java-version: '21'
       - run: npm ci
       - run: npm test
-      - run: npm run build
+      - name: Build web bundle (version = commit time, same as game patches)
+        run: VITE_BUNDLE_VERSION=$(git log -1 --format=%ct) npm run build
       - run: npm run android:add && npm run android:sync -w apps/client
       - run: python3 infra/configure-android.py
       - name: Build AAB and installable test APK
