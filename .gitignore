@@ -1,0 +1,13 @@
+node_modules/
+.env
+.env.*
+!.env.example
+dist/
+.vercel/
+*.jks
+*.keystore
+apps/client/android/
+
+local.properties
+*.p12
+release-private/

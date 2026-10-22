@@ -1,0 +1,9 @@
+{
+  "name": "@hub/server",
+  "private": true,
+  "type": "module",
+  "dependencies": {
+    "socket.io": "4.8.4",
+    "pg": "8.23.1"
+  }
+}

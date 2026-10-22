@@ -1,0 +1,53 @@
+name: Android signed bundle
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  bundle:
+    runs-on: ubuntu-latest
+    environment: android-release
+    env:
+      VITE_SERVER_URL: ${{ vars.VITE_SERVER_URL }}
+      VITE_SUPABASE_URL: ${{ vars.VITE_SUPABASE_URL }}
+      VITE_SUPABASE_PUBLISHABLE_KEY: ${{ vars.VITE_SUPABASE_PUBLISHABLE_KEY }}
+      VITE_DEV_AUTH: 'false'
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: '22'
+          cache: npm
+      - uses: actions/setup-java@c5195efecf7bdfc987ee8bae7a71cb8b11521c00
+        with:
+          distribution: temurin
+          java-version: '21'
+      - run: npm ci
+      - run: npm test
+      - name: Validate production endpoint
+        run: node -e "if(!process.env.VITE_SERVER_URL?.startsWith('https://') || !process.env.VITE_SUPABASE_URL) process.exit(1)"
+      - run: npm run build && npm run android:add && npm run android:sync
+      - name: Set increasing version code
+        run: python3 infra/android-version.py
+      - name: Build bundle
+        working-directory: apps/client/android
+        run: chmod +x gradlew && ./gradlew bundleRelease --no-daemon
+      - name: Sign AAB with upload key
+        env:
+          UPLOAD_KEY_BASE64: ${{ secrets.UPLOAD_KEY_BASE64 }}
+          KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
+          KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
+        run: |
+          umask 077
+          trap 'rm -f "$RUNNER_TEMP/upload.jks"' EXIT
+          printf '%s' "$UPLOAD_KEY_BASE64" | base64 --decode > "$RUNNER_TEMP/upload.jks"
+          jarsigner -keystore "$RUNNER_TEMP/upload.jks" -storepass:env KEYSTORE_PASSWORD -keypass:env KEY_PASSWORD apps/client/android/app/build/outputs/bundle/release/app-release.aab "$KEY_ALIAS"
+          jarsigner -verify apps/client/android/app/build/outputs/bundle/release/app-release.aab
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: social-casino-hub-aab
+          path: apps/client/android/app/build/outputs/bundle/release/app-release.aab
+          retention-days: 7

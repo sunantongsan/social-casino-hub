@@ -1,0 +1,20 @@
+{
+  "name": "social-casino-hub",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=22.12.0"
+  },
+  "workspaces": [
+    "apps/*"
+  ],
+  "scripts": {
+    "dev:client": "npm run dev -w apps/client",
+    "dev:server": "node --env-file-if-exists=.env apps/server/src/index.mjs",
+    "build": "npm run build -w apps/client",
+    "test": "node --test tests/*.test.mjs",
+    "android:add": "npm run android:add -w apps/client",
+    "android:sync": "npm run build && npm run android:sync -w apps/client"
+  }
+}

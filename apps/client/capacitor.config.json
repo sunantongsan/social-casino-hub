@@ -1,0 +1,11 @@
+{
+  "appId": "com.sunantongsan.socialcasinohub",
+  "appName": "Social Casino Hub",
+  "webDir": "dist",
+  "server": {
+    "androidScheme": "https"
+  },
+  "android": {
+    "allowMixedContent": false
+  }
+}

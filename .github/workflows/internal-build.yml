@@ -1,0 +1,41 @@
+name: Internal Android build
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  android:
+    runs-on: ubuntu-latest
+    env:
+      VITE_INTERNAL_TEST: 'true'
+      VITE_INTERNAL_ENDPOINT: https://uzinxxeadejmzxqmqqtx.supabase.co/functions/v1/social-casino-internal
+      VITE_DEV_AUTH: 'false'
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: '22'
+          cache: npm
+      - uses: actions/setup-java@c5195efecf7bdfc987ee8bae7a71cb8b11521c00
+        with:
+          distribution: temurin
+          java-version: '21'
+      - run: npm ci
+      - run: npm test
+      - run: npm run build
+      - run: npm run android:add && npm run android:sync -w apps/client
+      - run: python3 infra/configure-android.py
+      - name: Build AAB and installable test APK
+        working-directory: apps/client/android
+        run: chmod +x gradlew && ./gradlew bundleRelease assembleDebug --no-daemon
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: social-casino-hub-internal-unsigned
+          path: |
+            apps/client/android/app/build/outputs/bundle/release/app-release.aab
+            apps/client/android/app/build/outputs/apk/debug/app-debug.apk
+          retention-days: 7
