@@ -13,7 +13,7 @@ function bots(s:any,now:number){
   const delay=1500+parseInt(createHash('sha256').update(s.round.id+id).digest('hex').slice(0,6),16)%5000;
   if(s.round.phase!=='BETTING'||s.round.endsAt-now>20000-delay||s.round.bets[id])continue;
   ensureUser(s,id,true);
-  if(s.wallets[id].chips>=10)bet(s,id,{requestId:randomUUID(),roundId:s.round.id,kind:['small','big','triple'][parseInt(createHash('sha256').update(id+s.round.id).digest('hex').slice(0,6),16)%3],stake:10},now);
+  if(s.wallets[id].chips>=10)bet(s,id,{requestId:randomUUID(),roundId:s.round.id,kind:(s.round.rulesVersion===2?['small','big','eleven','n1','n2','n3','n4','n5','n6']:['small','big','triple'])[parseInt(createHash('sha256').update(id+s.round.id).digest('hex').slice(0,6),16)%(s.round.rulesVersion===2?9:3)],stake:10},now);
  }
  return humans.map(id=>({id,bot:false})).concat(ids.map(id=>({id,bot:true})));
 }
@@ -53,5 +53,5 @@ Deno.serve(async req=>{
    if((await saved.json()).length)return answer({ok:true,result,state:{...view(s,user),...tablesView(s,user),players,demo:false,internal:true}});
   }
   return answer({error:'BUSY_RETRY'},503);
- }catch(e){const safe=['READY_REQUIRED','ROUND_ACTIVE','JOIN_FIRST','NOT_YOUR_TURN','INVALID_ACTION','RAISE_LIMIT','EMPTY_PILE','DRAW_FIRST','INVALID_MELD','INVALID_CARD','INVALID_GAME','TABLE_FULL','STALE_ACTION','INVALID_BET','BETTING_CLOSED','ONE_BET_PER_ROUND','INSUFFICIENT_OR_LIMIT','INVALID_RECIPIENT','INVALID_COST','INVALID_GIFT','REWARD_NOT_ELIGIBLE','INVALID_REQUEST_ID','REQUEST_ID_REUSED','UNSUPPORTED_COMMAND'];return answer({error:safe.includes(e.message)?e.message:'SERVER_ERROR'},400);}
+ }catch(e){const safe=['CANNOT_KNOCK','READY_REQUIRED','ROUND_ACTIVE','JOIN_FIRST','NOT_YOUR_TURN','INVALID_ACTION','RAISE_LIMIT','EMPTY_PILE','DRAW_FIRST','INVALID_MELD','INVALID_CARD','INVALID_GAME','TABLE_FULL','STALE_ACTION','INVALID_BET','BETTING_CLOSED','ONE_BET_PER_ROUND','INSUFFICIENT_OR_LIMIT','INVALID_RECIPIENT','INVALID_COST','INVALID_GIFT','REWARD_NOT_ELIGIBLE','INVALID_REQUEST_ID','REQUEST_ID_REUSED','UNSUPPORTED_COMMAND'];return answer({error:safe.includes(e.message)?e.message:'SERVER_ERROR'},400);}
 });

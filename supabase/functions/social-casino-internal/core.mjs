@@ -1,19 +1,20 @@
 import {randomInt,randomUUID} from 'node:crypto';
-export const BETS = ['small','big','triple'];
-export function payout(dice,kind,stake){
-  if(!Array.isArray(dice)||dice.length!==3||dice.some(d=>!Number.isInteger(d)||d<1||d>6)) throw Error('INVALID_DICE');
-  if(!BETS.includes(kind)||!Number.isSafeInteger(stake)||stake<1||stake>1000) throw Error('INVALID_BET');
-  const sum=dice.reduce((a,b)=>a+b,0), triple=dice.every(d=>d===dice[0]);
-  // Gross return includes original stake: small/big net +1:1, any triple net +30:1.
-  const win=kind==='triple'?triple:!triple&&(kind==='small'?sum>=4&&sum<=10:sum>=11&&sum<=17);
-  return win?stake*(kind==='triple'?31:2):0;
+export const BETS = ['small','big','eleven','n1','n2','n3','n4','n5','n6'];
+export function payout(dice,kind,stake,legacy=false){
+ if(!Array.isArray(dice)||dice.length!==3||dice.some(d=>!Number.isInteger(d)||d<1||d>6))throw Error('INVALID_DICE');
+ if(!(legacy?['small','big','triple']:BETS).includes(kind)||!Number.isSafeInteger(stake)||stake<1||stake>Math.floor(Number.MAX_SAFE_INTEGER/32))throw Error('INVALID_BET');
+ const sum=dice.reduce((a,b)=>a+b,0),triple=dice.every(d=>d===dice[0]);
+ if(legacy){const win=kind==='triple'?triple:!triple&&(kind==='small'?sum>=4&&sum<=10:sum>=11&&sum<=17);return win?stake*(kind==='triple'?31:2):0;}
+ if(kind.startsWith('n')){const count=dice.filter(d=>d===Number(kind.slice(1))).length;return count?stake*(count+1):0;}
+ return (kind==='eleven'?sum===11:kind==='small'?sum<=10:sum>=12)?stake*(kind==='eleven'?31:2):0;
 }
+export const betList=b=>!b?[]:Array.isArray(b)?b:[b];
 export const roll=()=>Array.from({length:3},()=>randomInt(1,7));
 export function initial(now=Date.now()){
-  return {wallets:{},gifts:{},receipts:{},ledger:[],round:{id:randomUUID(),phase:'BETTING',endsAt:now+20000,bets:{},dice:null}};
+  return {wallets:{},gifts:{},receipts:{},ledger:[],round:{id:randomUUID(),rulesVersion:2,phase:'BETTING',endsAt:now+20000,bets:{},dice:null}};
 }
 export function credit(s,id,delta,reason){
-  const w=s.wallets[id]; if(!w||!Number.isSafeInteger(delta)||w.chips+delta<0||w.chips+delta>1e9) throw Error('INSUFFICIENT_OR_LIMIT');
+  const w=s.wallets[id]; if(!w||!Number.isSafeInteger(delta)||w.chips+delta<0||!Number.isSafeInteger(w.chips+delta)) throw Error('INSUFFICIENT_OR_LIMIT');
   w.chips+=delta;s.ledger.push({id:randomUUID(),user:id,delta,reason,at:Date.now()});
 }
 export function ensureUser(s,id,bot=false){
@@ -29,16 +30,16 @@ export function bet(s,user,{requestId,roundId,kind,stake},now=Date.now()){
   return once(s,user,requestId,{roundId,kind,stake},()=>{
     const r=s.round;
     if(r.id!==roundId||r.phase!=='BETTING'||now>=r.endsAt)throw Error('BETTING_CLOSED');
-    payout([1,2,3],kind,stake);
-    if(r.bets[user])throw Error('ONE_BET_PER_ROUND');
-    credit(s,user,-stake,'bet:'+r.id);r.bets[user]={kind,stake};return {accepted:true};
+    payout([1,2,3],kind,stake,r.rulesVersion!==2);
+    if(r.rulesVersion!==2&&r.bets[user])throw Error('ONE_BET_PER_ROUND');
+    credit(s,user,-stake,'bet:'+r.id);const bets=betList(r.bets[user]);const old=bets.find(b=>b.kind===kind);if(old)old.stake+=stake;else bets.push({kind,stake});r.bets[user]=bets;return {accepted:true};
   });
 }
 export function tick(s,now=Date.now(),diceFactory=roll){
   const r=s.round;if(now<r.endsAt)return;
   if(r.phase==='BETTING'){
     r.dice=diceFactory();r.phase='RESULT';r.endsAt=now+7000;
-    for(const [id,b] of Object.entries(r.bets))credit(s,id,payout(r.dice,b.kind,b.stake),'settle:'+r.id);
+    r.results={};for(const [id,b] of Object.entries(r.bets)){const items=betList(b).map(x=>({...x,gross:payout(r.dice,x.kind,x.stake,r.rulesVersion!==2)}));const stake=items.reduce((a,x)=>a+x.stake,0),gross=items.reduce((a,x)=>a+x.gross,0);credit(s,id,gross,'settle:'+r.id);r.results[id]={stake,gross,net:gross-stake,won:items.reduce((a,x)=>a+Math.max(0,x.gross-x.stake),0),lost:items.reduce((a,x)=>a+(x.gross===0?x.stake:0),0),items};}
   }else{s.round=initial(now).round;}
 }
 export function sendGift(s,user,{requestId,to,cost}){

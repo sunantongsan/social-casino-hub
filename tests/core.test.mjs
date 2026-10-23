@@ -3,14 +3,14 @@ import {initial,ensureUser,payout,bet,tick,sendGift,claimGift,verifiedReward} fr
 import {Bot} from '../apps/server/src/bot.mjs';import {createStore} from '../apps/server/src/store.mjs';
 function fixture(){const s=initial(0);ensureUser(s,'alice');ensureUser(s,'bob');return s;}
 const b=(s,kind='small',stake=100)=>({requestId:randomUUID(),roundId:s.round.id,kind,stake});
-test('all 216 dice combinations: 105 small, 105 big, 6 triples',()=>{
- let wins={small:0,big:0,triple:0};for(let a=1;a<=6;a++)for(let b=1;b<=6;b++)for(let c=1;c<=6;c++){
+test('all 216 dice combinations: 108 small, 81 big, 27 eleven',()=>{
+ let wins={small:0,big:0,eleven:0};for(let a=1;a<=6;a++)for(let b=1;b<=6;b++)for(let c=1;c<=6;c++){
   const d=[a,b,c];for(const k in wins)if(payout(d,k,10)>0)wins[k]++;
   assert.equal(Object.keys(wins).filter(k=>payout(d,k,10)>0).length,1);
- }assert.deepEqual(wins,{small:105,big:105,triple:6});
+ }assert.deepEqual(wins,{small:108,big:81,eleven:27});
 });
 test('reject forged/negative/fractional amounts and late or wrong rounds',()=>{
- for(const amount of [-1,0,1.2,NaN,Infinity,1001,'100']){const s=fixture();assert.throws(()=>bet(s,'alice',b(s,'small',amount),0),/INVALID_BET/);assert.equal(s.wallets.alice.chips,1000);}
+ for(const amount of [-1,0,1.2,NaN,Infinity,Number.MAX_SAFE_INTEGER,'100']){const s=fixture();assert.throws(()=>bet(s,'alice',b(s,'small',amount),0),/INVALID_BET/);assert.equal(s.wallets.alice.chips,1000);}
  const s=fixture();assert.throws(()=>bet(s,'alice',b(s),20000),/CLOSED/);assert.equal(s.wallets.alice.chips,1000);
 });
 test('idempotent bet and settlement; no double payout',()=>{
@@ -18,9 +18,7 @@ test('idempotent bet and settlement; no double payout',()=>{
  assert.throws(()=>bet(s,'alice',{...p,stake:50},3),/REUSED/);
  tick(s,20000,()=>[1,2,3]);assert.equal(s.wallets.alice.chips,1100);tick(s,20001);assert.equal(s.wallets.alice.chips,1100);
 });
-test('triple defeats both high and low, returns stake + 30x for triple',()=>{
- assert.equal(payout([2,2,2],'small',100),0);assert.equal(payout([6,6,6],'big',100),0);assert.equal(payout([3,3,3],'triple',10),310);
-});
+test('triples follow sum; eleven defeats both sides and pays 30:1',()=>{assert.equal(payout([2,2,2],'small',100),200);assert.equal(payout([6,6,6],'big',100),200);for(const k of ['small','big'])assert.equal(payout([2,3,6],k,100),0);assert.equal(payout([2,3,6],'eleven',100),3100);});
 test('gift burns 50%, floors odd amounts, recipient-only and once',()=>{
  const s=fixture(),p={requestId:randomUUID(),to:'bob',cost:101};const {giftId}=sendGift(s,'alice',p);sendGift(s,'alice',p);
  assert.throws(()=>claimGift(s,'alice',{giftId}));claimGift(s,'bob',{giftId});claimGift(s,'bob',{giftId});

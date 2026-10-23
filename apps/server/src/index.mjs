@@ -45,7 +45,7 @@ io.on('connection',socket=>{
       case 'demoReward':if(dev)return testRefill(s,socket.data.user,{requestId:randomUUID()});break;
      }throw Error('UNSUPPORTED_COMMAND');
     });ack({ok:true,result});await broadcast().catch(()=>console.error('broadcast failed'));
-   }catch(e){const safe=['READY_REQUIRED','ROUND_ACTIVE','JOIN_FIRST','NOT_YOUR_TURN','INVALID_ACTION','RAISE_LIMIT','EMPTY_PILE','DRAW_FIRST','INVALID_MELD','INVALID_CARD','INVALID_GAME','TABLE_FULL','STALE_ACTION','BETTING_CLOSED','ONE_BET_PER_ROUND','INVALID_BET','INSUFFICIENT_OR_LIMIT','INVALID_RECIPIENT','INVALID_COST','REWARD_NOT_ELIGIBLE','AUTH_REQUIRED','INVALID_GIFT','REQUEST_ID_REUSED'];ack({error:safe.includes(e.message)?e.message:'REQUEST_FAILED'});}
+   }catch(e){const safe=['CANNOT_KNOCK','READY_REQUIRED','ROUND_ACTIVE','JOIN_FIRST','NOT_YOUR_TURN','INVALID_ACTION','RAISE_LIMIT','EMPTY_PILE','DRAW_FIRST','INVALID_MELD','INVALID_CARD','INVALID_GAME','TABLE_FULL','STALE_ACTION','BETTING_CLOSED','ONE_BET_PER_ROUND','INVALID_BET','INSUFFICIENT_OR_LIMIT','INVALID_RECIPIENT','INVALID_COST','REWARD_NOT_ELIGIBLE','AUTH_REQUIRED','INVALID_GIFT','REQUEST_ID_REUSED'];ack({error:safe.includes(e.message)?e.message:'REQUEST_FAILED'});}
  });
  store.run(s=>ensureUser(s,socket.data.user)).then(broadcast).catch(()=>socket.disconnect(true));
  const expiry=setTimeout(()=>socket.disconnect(true),15*60*1000);

@@ -9,7 +9,7 @@ export class Bot {
    if(r.bets[this.id]){this.state='WAIT_RESULT';return;}
    if(this.state!=='THINKING'||now<this.due)return;
    ensureUser(s,this.id,true);
-   if(s.wallets[this.id].chips>=10){bet(s,this.id,{requestId:randomUUID(),roundId:r.id,kind:['small','big','triple'][randomInt(0,3)],stake:10},now);}
+   if(s.wallets[this.id].chips>=10){bet(s,this.id,{requestId:randomUUID(),roundId:r.id,kind:(s.round.rulesVersion===2?['small','big','eleven','n1','n2','n3','n4','n5','n6']:['small','big','triple'])[randomInt(0,s.round.rulesVersion===2?9:3)],stake:10},now);}
    this.state='WAIT_RESULT';
  }
 }
